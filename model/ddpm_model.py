@@ -16,7 +16,7 @@ from model.config import config
 
 class DDPM(nn.Module):
     
-    def __init__(self, backward_=None, n_steps=100, device=None, min_beta=0.0001, max_beta=0.02, DIP_Method=False):
+    def __init__(self, backward_=None, n_steps=100, device=None, min_beta=0.0001, max_beta=0.02, DIP_Method=False, time_step=True):
         super().__init__()
         self.image_shape = (1, 128, 128)
         if backward_ != None:
@@ -29,24 +29,25 @@ class DDPM(nn.Module):
         # alpha_bar_t = alpha_t * alpha_t-1 * ..... * alpha_1
         self.alpha_bars = torch.tensor([torch.prod(self.alphas[:i + 1]) for i in range(len(self.alphas))]).to(device)
         self.DIP_Method = DIP_Method
+        self.time_step = time_step
         
     def forward(self, x, t, eta=None):
         B, C, H, W = x.shape                                                    # batch_size, channel, height, width
         
-        # if self.DIP_Method == False:
+        if self.time_step == True:
             
-        alpha_bar = torch.tensor([self.alpha_bars[t]])                      # get current alpha_bar by current time_step
-        alpha_bar = repeat(alpha_bar, 'C -> B C', B=B).to(self.device)      # repeat it B times(for batch calculation)
-        
-        # eta is a guassian distribution
-        if eta == None:
-            eta = torch.randn(B, C, H, W).to(self.device)
-        
-        # q = alpha_hat.sqrt() * x_0 + (1 - alpha_hat).sqrt() * eta
-        noise = alpha_bar.sqrt().view(B, 1, 1, 1) * x.to(self.device) + (1 - alpha_bar).sqrt().view(B, 1, 1, 1) * eta
-        
-        # else :
-        #     noise = torch.randn(B, C, H, W)    
+            alpha_bar = torch.tensor([self.alpha_bars[t]])                      # get current alpha_bar by current time_step
+            alpha_bar = repeat(alpha_bar, 'C -> B C', B=B).to(self.device)      # repeat it B times(for batch calculation)
+            
+            # eta is a guassian distribution
+            if eta == None:
+                eta = torch.randn(B, C, H, W).to(self.device)
+            
+            # q = alpha_hat.sqrt() * x_0 + (1 - alpha_hat).sqrt() * eta
+            noise = alpha_bar.sqrt().view(B, 1, 1, 1) * x.to(self.device) + (1 - alpha_bar).sqrt().view(B, 1, 1, 1) * eta
+            
+        else :
+            noise = torch.randn(B, C, H, W)    
         
         return noise
     
