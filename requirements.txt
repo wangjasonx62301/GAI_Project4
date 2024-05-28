@@ -1,0 +1,5 @@
+torch
+einops
+numpy
+opencv-python
+matplotlib
