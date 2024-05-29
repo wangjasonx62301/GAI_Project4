@@ -17,6 +17,26 @@ from model.config import config
 from model.ddpm_model import *
 from data.CustomDataset import *
 
+def eval_lr(ddpms, learning_rate, origin_image, average_dict):
+    
+    def cmp(s, dt, t, lr, device):
+        dt, t = dt.to(device), t.to(device)
+        ex = torch.all(dt == t).item()
+        app = torch.allclose(dt, t)
+        maxdiff = (dt - t).abs().max().item()
+        average_dict[lr].append(maxdiff)
+        print(f'{s:15s} | exact: {str(ex):5s} | approximate: {str(app):5s} | maxdiff: {maxdiff}')
+    
+    gen_images = None
+    for ddpm, lr in zip(ddpms, learning_rate):
+        gen = generate_image(ddpm, n_samples=1)
+        if gen_images == None: gen_images = gen
+        else: gen_images = torch.cat((gen_images, gen), dim=0)
+        cmp(f'using lr : {lr:.5f}', origin_image, gen, lr, ddpm.device)
+        
+    show_image(gen_images)
+    
+
 def train(ddpm, loader, epochs, optim, device, display=False):
     criterion = nn.L1Loss()
     n_steps = ddpm.n_steps
