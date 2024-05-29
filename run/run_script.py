@@ -16,23 +16,22 @@ import matplotlib.pyplot as plt
 from model.config import config
 from model.ddpm_model import *
 from data.CustomDataset import *
+from skimage.metrics import structural_similarity
+
+def eval_DDPM_Method(ddpm, origin_image):
+    gen = generate_image(ddpm, n_samples=1)
+    sim = structural_similarity(gen.view(128, 128, 1).cpu().numpy(), origin_image.view(128, 128, 1).cpu().numpy(), data_range=255, channel_axis=2)
+    print(f'Using SSIM get : {sim:.6f}')
 
 def eval_lr(ddpms, learning_rate, origin_image, average_dict):
-    
-    def cmp(s, dt, t, lr, device):
-        dt, t = dt.to(device), t.to(device)
-        ex = torch.all(dt == t).item()
-        app = torch.allclose(dt, t)
-        maxdiff = (dt - t).abs().max().item()
-        average_dict[lr].append(maxdiff)
-        print(f'{s:15s} | exact: {str(ex):5s} | approximate: {str(app):5s} | maxdiff: {maxdiff}')
     
     gen_images = None
     for ddpm, lr in zip(ddpms, learning_rate):
         gen = generate_image(ddpm, n_samples=1)
         if gen_images == None: gen_images = gen
         else: gen_images = torch.cat((gen_images, gen), dim=0)
-        cmp(f'using lr : {lr:.5f}', origin_image, gen, lr, ddpm.device)
+        sim = structural_similarity(gen, origin_image)
+        average_dict[lr].append(sim)
         
     show_image(gen_images)
     
@@ -72,8 +71,9 @@ def train(ddpm, loader, epochs, optim, device, display=False):
             cur_loss += loss.item() * len(x0) / len(loader.dataset)
 
         losses.append(cur_loss)      
-        if epoch % 10 == 0:     
+        if epoch % 50 == 0:     
             print(f'{epoch:3d} / {epochs:3d} loss : {cur_loss:.5f}')
+            eval_DDPM_Method(ddpm, x0)
             
         if display == True and epoch % 50 == 0 :
             n_samples = 16 if ddpm.DIP_Method == False else 1
