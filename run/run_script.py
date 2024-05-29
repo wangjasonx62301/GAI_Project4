@@ -30,7 +30,7 @@ def eval_lr(ddpms, learning_rate, origin_image, average_dict):
         gen = generate_image(ddpm, n_samples=1)
         if gen_images == None: gen_images = gen
         else: gen_images = torch.cat((gen_images, gen), dim=0)
-        sim = structural_similarity(gen, origin_image)
+        sim = structural_similarity(gen.view(128, 128, 1).cpu().numpy(), origin_image.view(128, 128, 1).cpu().numpy(), data_range=255, channel_axis=2)
         average_dict[lr].append(sim)
         
     show_image(gen_images)
